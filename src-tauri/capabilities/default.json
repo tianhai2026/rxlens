@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "RxLens 默认权限集合",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "fs:allow-read",
+    "fs:allow-write",
+    "fs:allow-read-dir",
+    "fs:allow-copy-file",
+    "fs:allow-remove",
+    "fs:allow-rename",
+    "fs:scope-document",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-ask",
+    "dialog:allow-message",
+    "os:allow-platform",
+    "os:allow-version",
+    "os:allow-os-type",
+    "process:allow-restart"
+  ]
+}

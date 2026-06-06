@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "处方镜 RxLens",
+  "version": "4.0.0",
+  "identifier": "com.rxlens.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:3001",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "处方镜 RxLens",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "theme": "Dark"
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "dmg", "app", "appimage", "deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "RxLens",
+    "category": "Medical",
+    "shortDescription": "智能处方扫描与台账管理",
+    "longDescription": "赛博医疗级智能处方扫描与台账管理系统，支持OCR识别、离线存储与云端同步"
+  },
+  "plugins": {
+    "fs": {
+      "scope": ["$DOCUMENT/rxlens/*", "$DOWNLOAD/*"]
+    }
+  }
+}

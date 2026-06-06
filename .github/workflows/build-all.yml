@@ -1,0 +1,210 @@
+name: Build All Platforms
+
+on:
+  push:
+    branches: [main, release/*]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: short
+
+jobs:
+  # ==========================================
+  # Windows 桌面端构建
+  # ==========================================
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version '^2.0.0'
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Windows installer
+        run: cargo tauri build --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxlens-windows
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+
+  # ==========================================
+  # macOS 桌面端构建
+  # ==========================================
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version '^2.0.0'
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build macOS bundle
+        run: cargo tauri build --target ${{ matrix.target }}
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxlens-macos-${{ matrix.target }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
+
+  # ==========================================
+  # Android 移动端构建
+  # ==========================================
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version '^2.0.0'
+
+      - name: Build Android APK
+        run: cargo tauri android build
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rxlens-android
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+
+  # ==========================================
+  # 鸿蒙 OpenHarmony 构建（实验性）
+  # ==========================================
+  # 状态：等待 Tauri 官方 OpenHarmony 支持成熟后启用
+  # 当前所需前置条件：
+  #   1. Tauri v2 正式发布 OpenHarmony 目标平台
+  #   2. cargo-mobile2 完成 OpenHarmony 后端适配
+  #   3. ohrs 工具链稳定支持 Tauri 集成
+  #   4. GitHub Actions Runner 支持 HarmonyOS 构建环境
+  #
+  # build-harmonyos:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         cache: 'npm'
+  #
+  #     - name: Setup Rust
+  #       uses: dtolnay/rust-action@stable
+  #       with:
+  #         targets: aarch64-unknown-linux-ohos
+  #
+  #     - name: Install ohrs
+  #       run: cargo install ohrs
+  #
+  #     - name: Install DevEco Studio CLI
+  #       run: |
+  #         wget https://contentcenter-vali-drcn.dbankcdn.cn/pvt_2/DeveloperAlliance_package_901_9/b7/v3/oh-commandline-tools-linux.zip
+  #         unzip oh-commandline-tools-linux.zip -d ~/ohos-tools
+  #         echo "~/ohos-tools/entry/build-tools/hap-sign-tool" >> $GITHUB_PATH
+  #
+  #     - name: Install dependencies
+  #       run: npm ci
+  #
+  #     - name: Build OpenHarmony HAP
+  #       run: |
+  #         cargo tauri ohos build
+  #         mkdir -p dist/ohos
+  #         cp src-tauri/gen/ohos/build/outputs/default/*.hap dist/ohos/
+  #
+  #     - name: Upload HarmonyOS artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: rxlens-harmonyos
+  #         path: dist/ohos/*.hap
+
+  # ==========================================
+  # 创建 GitHub Release
+  # ==========================================
+  release:
+    needs: [build-windows, build-macos, build-android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
